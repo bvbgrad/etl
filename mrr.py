@@ -44,23 +44,28 @@ def processReport():
     # print(monthlyFilename)
 
     monthlyList = []
+    mergeData = []
     with open(os.path.join(DATA_FOLDER, monthlyFilename), mode='r') as csv_file:
         monthlyDict = csv.DictReader(csv_file)
         line_count = 0
         for row in monthlyDict:
             if line_count == 0:
-                print(f'Column names are {", ".join(row)}')
-                line_count += 1
+                print(f'Base column names are {", ".join(row)}')
+    # Add the readings column to the Monthly list row
+    # mergeData will have the same rows and comlumns as the Monthly file plus a 'readings' value for each row 
+            row['readings'] = 0
             # print(f'{row}')
             monthlyList.append(row)
             line_count += 1
         print(f'Processed {line_count} lines.')
 
     loop = True
+    dailyList = set()
     while (loop):
         print("\nEnter 'Next' or 'N' to create the consolidated report.")
         print("Enter 'quit' or 'Q' to abort the process.")
-        dailyFilename = getFilename("Enter a report number to add another daily report: ")
+        dailyFilename = getFilename("Enter a report number to add a daily report: ")
+    # The file chooser will respond with a filename equal to 'Merge' upon receiving a 'Next' response
         if dailyFilename == 'Merge':
             loop = False
             continue
@@ -68,17 +73,14 @@ def processReport():
 
         with open(os.path.join(DATA_FOLDER, dailyFilename), mode='r') as csv_file:
             dailyCSV = csv.reader(csv_file)
-            dailyList = []
             buildID = False
             dateFlag = False
-            rowDict = {}
             for i, row in enumerate(dailyCSV, 1):
                 # print(f'{i:4}. raw data {row}')
                 if row[0] == '' and dateFlag:
                     if buildID:
                         buildID = False
                         dateFlag = False
-                        rowDict = {}
                     continue
                 elif not buildID and not dateFlag and row[0] != '':
                     patientID = row[0]
@@ -88,10 +90,8 @@ def processReport():
                 elif buildID:
                     try:
                         rowDate = datetime.strptime(row[0], '%Y-%m-%d')
-                        rowDict['Patient ID'] = patientID
-                        rowDict['date'] = row[0]
-                        dailyList.append(rowDict)
-                        # print(f"\trowDict: {rowDict}")
+                        readingDate = rowDate.strftime('%Y-%m-%d')
+                        dailyList.add((patientID, readingDate,))
                         dateFlag = True
                     except Exception as e:
                         # print(f"\t{i:4}. {row[0]}  {e}")
@@ -101,18 +101,18 @@ def processReport():
         # print(monthlyList)
 
         histogramCount = {}
-        for item in dailyList:
+        for patientID, readingDate in dailyList:
             try:
-                histogramCount[item['Patient ID']] += 1
+                histogramCount[patientID] += 1
             except KeyError as err:
-                histogramCount[item['Patient ID']] = 1
+                histogramCount[patientID] = 1
         print(f"readings per Patient ID = {histogramCount}")
 
-        mergeData = []
-        for patient in monthlyList:
-            mergeDict = patient
+        for patientAccountLine in monthlyList:
+            mergeDict = patientAccountLine
             try:
-                mergeDict['readings'] = histogramCount[patient['Patient ID']]
+    # The readings value will become the summation of all the daily reading counts
+                mergeDict['readings'] = histogramCount[patientAccountLine['Patient ID']]
             except KeyError as err:
                 mergeDict['readings'] = 0
             # print(f"patient record: {mergeDict}")
