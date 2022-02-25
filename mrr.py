@@ -18,7 +18,7 @@ def getFilename(promptMsg):
             itemText = input(promptMsg)
             if itemText == 'Quit' or itemText.lower() == 'q':
                 sys.exit()
-            elif itemText == 'Next' or itemText.lower() == 'n':
+            elif itemText.lower() == 'next' or itemText.lower() == 'n':
                 return 'Merge'
 
             itemNbr = int(itemText)
