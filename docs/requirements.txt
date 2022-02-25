@@ -1,0 +1,10 @@
+altgraph==0.17.2
+autopep8==1.6.0
+packaging==21.3
+pip-review==1.1.1
+pkg_resources==0.0.0
+pycodestyle==2.8.0
+pyinstaller==4.9
+pyinstaller-hooks-contrib==2022.2
+pyparsing==3.0.7
+toml==0.10.2
