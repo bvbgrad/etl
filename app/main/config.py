@@ -61,7 +61,7 @@ def get_version():
 def getargs():
     logger.info(__name__ + ".getargs()")
     parser = argparse.ArgumentParser(
-        description="Track and log job search activities")
+        description="Create summary report of account readings")
     parser.add_argument(
         '-i', '--index', default=False, action="store_true",
         help='Display object indexes in tables')
