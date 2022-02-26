@@ -7,7 +7,7 @@ from datetime import date, datetime
 DATA_FOLDER = 'data/'
 used_files = set()
 
-def getFilename(promptMsg):
+def get_filename(promptMsg):
     dirList = os.listdir(DATA_FOLDER)
     loop = True
     while loop:
@@ -26,7 +26,7 @@ def getFilename(promptMsg):
                 raise ValueError
             else:
                 filename = dirList[itemNbr - 1]
-        except Exception as err:
+        except Exception:
             print(f"You must input a number from 1 to {len(dirList)}. Please try again.")
             continue
 
@@ -38,9 +38,9 @@ def getFilename(promptMsg):
 
     return filename
 
-def processReport():
+def process_report():
     print("Enter 'quit' or 'Q' to exit.")
-    monthlyFilename = getFilename("Enter the number for the monthy data file or 'quit' to exit: ")
+    monthlyFilename = get_filename("Enter the number for the monthy data file or 'quit' to exit: ")
     # print(monthlyFilename)
 
     monthlyList = []
@@ -64,7 +64,7 @@ def processReport():
     while (loop):
         print("\nEnter 'Next' or 'N' to create the consolidated report.")
         print("Enter 'quit' or 'Q' to abort the process.")
-        dailyFilename = getFilename("Enter a report number to add a daily report: ")
+        dailyFilename = get_filename("Enter a report number to add a daily report: ")
     # The file chooser will respond with a filename equal to 'Merge' upon receiving a 'Next' response
         if dailyFilename == 'Merge':
             loop = False
@@ -81,19 +81,17 @@ def processReport():
                     if buildID:
                         buildID = False
                         dateFlag = False
-                    continue
                 elif not buildID and not dateFlag and row[0] != '':
                     patientID = row[0]
                     print(f"\t{i:4}. Found patient ID = {patientID}")
                     buildID = True
-                    continue
                 elif buildID:
                     try:
                         rowDate = datetime.strptime(row[0], '%Y-%m-%d')
                         readingDate = rowDate.strftime('%Y-%m-%d')
                         dailyList.add((patientID, readingDate,))
                         dateFlag = True
-                    except Exception as e:
+                    except Exception:
                         # print(f"\t{i:4}. {row[0]}  {e}")
                         continue
             
@@ -104,7 +102,7 @@ def processReport():
         for patientID, readingDate in dailyList:
             try:
                 histogramCount[patientID] += 1
-            except KeyError as err:
+            except KeyError:
                 histogramCount[patientID] = 1
         print(f"readings per Patient ID = {histogramCount}")
 
@@ -113,17 +111,17 @@ def processReport():
             try:
     # The readings value will become the summation of all the daily reading counts
                 mergeDict['readings'] = histogramCount[patientAccountLine['Patient ID']]
-            except KeyError as err:
+            except KeyError:
                 mergeDict['readings'] = 0
             # print(f"patient record: {mergeDict}")
             mergeData.append(mergeDict)
 
     print("\nSaving the consolidated report.")
-    with open('data/merge_report.csv', mode='w') as csv_out:
+    with open('data/merge_report.csv', mode='w', newline='') as csv_out:
         fieldnames = ['Patient ID', 'Billing Code', 'Duration', 'readings']
         writer = csv.DictWriter(csv_out, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(mergeData)
 
 if __name__ == "__main__":
-    processReport()
+    process_report()
