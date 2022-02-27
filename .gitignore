@@ -8,8 +8,9 @@ logs/
 
 *.json
 *.db
-*.sqlite
 *.pdf
+*.spec
+*.sqlite
 
 *.pyc
 __pycache__/

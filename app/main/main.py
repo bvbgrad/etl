@@ -1,5 +1,6 @@
 import logging
 import os
+from re import MULTILINE
 import PySimpleGUI as sg
 
 import app.utils6L.utils6L as utils
@@ -52,14 +53,14 @@ def menu():
     report_tab_layout = [
         [sg.Text(
             'Load the first daily file.',
-            key='-REPORT_TEXT_1')],
+            key='-REPORT_TEXT_1-')],
         [sg.Text(
             'The data will change as the daily files are loaded.',  
-            key='-REPORT_TEXT_2')],
+            key='-REPORT_TEXT_2-')],
         [sg.Table(
             values=[],
             headings=report_header,
-            max_col_width=25,
+            max_col_width=70,
             auto_size_columns=True,
             visible_column_map=report_visible_column_map,
             display_row_numbers=False,
@@ -69,30 +70,31 @@ def menu():
             key='-DATA_TABLE-',
             tooltip='This table shows current number of readings for each patient')],
         [sg.Btn('Load Daily', key='-BTN_LOAD_DAILY-', pad=5, button_color=('white', 'blue3')),
-            sg.Btn('Save CSV', key='-BTN_SAVE_CSV-', pad=5, disabled=True, button_color=('white', 'blue3'), 
-                disabled_button_color=('white', 'grey')),
-            ],
+            sg.Btn('Save CSV', key='-BTN_SAVE_CSV-', pad=5, button_color=('white', 'blue3'), visible=False),
+            ]
         ]
 
-    # metrics_tab_layout = [[sg.Text('This is inside the metrics tab')]]
+    log_tab_layout = [[sg.Text('This tab will log the Account Summary Report creation actions.')],
+        [sg.Multiline(size=(70,20), key="-LOG-", reroute_stdout=True, disabled=True)
+    ]]
 
     layout = [[
         [sg.Menu(menu_def, key='-MENU-')],
         [sg.Text(
-            f"Status: Master account table loaded", relief=sg.RELIEF_SUNKEN,
+            f"Load Master account table", relief=sg.RELIEF_SUNKEN,
             size=(55, 1), pad=(0, 3), key='-STATUS-')],
         sg.TabGroup([[
             sg.Tab('Create Report', report_tab_layout),
-            # sg.Tab('Metrics', metrics_tab_layout)
+            sg.Tab('Log', log_tab_layout)
             ]], tab_background_color='LightBlue', selected_background_color='White', key='-TAB-')
     ]]
 
-    load_master_data()
 
     window = sg.Window(
         'Executive Monthly Account Report Summary (eMARS)',
         layout, default_element_size=(40, 1),
         resizable=True, finalize=True)
+    load_master_data(window)
 
     # --- Menu Loop --- #
     while True:
@@ -102,15 +104,10 @@ def menu():
         if event == sg.WIN_CLOSED or event == 'Exit' or event is None:
             break
         elif event == 'Load a daily report' or event == '-BTN_LOAD_DAILY-':
-            filename = load_daily_report()
-            if filename == 'used':
-                window['-STATUS-'].update(f"File has already been loaded. Please try again.")
-            else:
-                window['-STATUS-'].update(f"Daily report '{filename}' was loaded")
-                window['-BTN_SAVE_CSV-'].update(disabled=False)
-            window['-REPORT_TEXT_1'].update('You may load addition daily reports')
+            load_daily_report(window)
+            window['-BTN_SAVE_CSV-'].update(visible=True)
         elif event == 'Save CSV' or event == '-BTN_SAVE_CSV-':
-            save_csv()
+            save_csv(window)
         elif event == 'About...':
             sg.popup(legal_fine_print, title="About eMARS")
 
