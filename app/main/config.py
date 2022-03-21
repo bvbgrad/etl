@@ -9,7 +9,7 @@ import os
 import app.utils6L.utils6L as utils
 
 author = __author__ = 'Brent V. Bingham'
-version = __version__ = '0.1'
+version = __version__ = '0.2'
 
 logger_name = os.getenv("LOGGER_NAME")
 logger = logging.getLogger(logger_name)
@@ -54,7 +54,7 @@ def save_config(config_data):
 @utils.log_wrap
 def get_version():
     logger.info(__name__ + ".get_version()")
-    return f"Version: {version}\nCopyright 2021 6L.LLC dba 6LSolutions\nAll rights reserved"
+    return f"Version: {version}\nCopyright 2022 6L.LLC dba 6LSolutions\nAll rights reserved"
 
 
 @utils.log_wrap

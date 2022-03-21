@@ -95,8 +95,8 @@ def load_daily_report(window):
 
     if daily_filename in used_files:
         logger.info(f"File '{daily_filename}' has already been used.")
-        sg.popup_ok(f"File '{daily_filename}' has already been used.")
-        window['-STATUS-'].update(f"Loading {daily_filename} failed")
+        sg.popup_ok(f"'{daily_filename}'\nhas already been used.")
+        window['-STATUS-'].update(f"Loading of {daily_filename} failed")
         window['-REPORT_TEXT_1-'].update(f"File has already been loaded. Please try again.")
         return
     else:
