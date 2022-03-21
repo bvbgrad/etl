@@ -45,10 +45,10 @@ def menu():
         report_visible_column_map = None
     else:
         report_visible_column_map = \
-            [False, True, True]
+            [False, True, True, True, True]
 
     report_header = \
-        ['Row', 'Patient Name    ', 'Readings']
+        ['Row', 'Patient Name    ', 'Billing Code', 'Duration', 'Readings']
 
     report_tab_layout = [
         [sg.Text(

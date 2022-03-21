@@ -45,11 +45,13 @@ def load_master_data(window):
     # Add the readings column to the Monthly list row
             account_set.add(row['Patient ID'])
             patient_set.add(row['Patient Name'])
-    for i, patient_name in enumerate(patient_set, 1):
-        row = {}
-        row['Patient Name'] = patient_name
-        row['readings'] = 0
-        monthly_list.append(row)
+
+            csv_row = {}
+            csv_row['Patient Name'] = row['Patient Name']
+            csv_row['Billing Code'] = row['Billing Code']
+            csv_row['Duration'] = row['Duration']
+            csv_row['readings'] = 0
+            monthly_list.append(csv_row)
     logger.info(f'Monthly list has {len(monthly_list)} patient accounts.')
     
     window['-STATUS-'].update(f"Master Account file loaded with {len(monthly_list)} patient accounts.")
@@ -67,7 +69,7 @@ def get_monthly_list_summary():
 
     monthly_list_summary = []
     for i, item in enumerate(monthly_list, 1):
-        account_row = (i, item['Patient Name'], item['readings'])
+        account_row = (i, item['Patient Name'], item['Billing Code'], item['Duration'], item['readings'])
         monthly_list_summary.append(account_row)
     logger.info(f"The monthly patient summary has {len(monthly_list_summary)} items")
     return monthly_list_summary
@@ -191,7 +193,7 @@ def save_csv(window):
     file_name = os.path.join(dir_name, 'account_summary.csv')
 
     with open(file_name, mode='w', newline='') as csv_out:
-        fieldnames = ['Patient Name', 'readings']
+        fieldnames = ['Patient Name', 'Billing Code', 'Duration', 'readings']
         writer = csv.DictWriter(csv_out, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(monthly_list_summary)
