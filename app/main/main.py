@@ -45,10 +45,10 @@ def menu():
         report_visible_column_map = None
     else:
         report_visible_column_map = \
-            [False, True, True, True, True]
+            [False, True, True]
 
     report_header = \
-        ['Row', 'Patient ID', 'Billing Code', 'Duration', 'Readings']
+        ['Row', 'Patient Name    ', 'Readings']
 
     report_tab_layout = [
         [sg.Text(
@@ -82,7 +82,7 @@ def menu():
         [sg.Menu(menu_def, key='-MENU-')],
         [sg.Text(
             f"Load Master account table", relief=sg.RELIEF_SUNKEN,
-            size=(55, 1), pad=(0, 3), key='-STATUS-')],
+            size=(70, 1), pad=(0, 3), key='-STATUS-')],
         sg.TabGroup([[
             sg.Tab('Create Report', report_tab_layout),
             sg.Tab('Log', log_tab_layout)
@@ -121,6 +121,6 @@ def refresh_table_info(window):
     logger.info(__name__ + ".refresh_table_info()")
 
     monthly_list_summary = get_monthly_list_summary()
-    logger.info(f"number of non-zero readings: {len(monthly_list_summary)}")
+    logger.info(f"number of readings: {len(monthly_list_summary)}")
     if len(monthly_list_summary) > 0:
         window['-DATA_TABLE-'].update(monthly_list_summary)

@@ -16,6 +16,8 @@ logger = logging.getLogger(logger_name)
 
 monthly_filename_remember = ''
 monthly_list = []
+account_set = set()
+patient_set = set()
 dailyList = set()
 used_files = set()
 
@@ -28,6 +30,8 @@ def load_master_data(window):
         sys.exit()
 
     global monthly_filename_remember
+    global account_set
+    global patient_set
     monthly_filename_remember = monthly_filename
 
     print(f"Log intiated at: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
@@ -39,11 +43,14 @@ def load_master_data(window):
             if i == 0:
                 logger.info(f'Base column names are {", ".join(row)}')
     # Add the readings column to the Monthly list row
-    # mergeData will have the same rows and comlumns as the Monthly file plus a 'readings' value for each row 
-            row['readings'] = 0
-            monthly_list.append(row)
-            # print(f'{row}')
-        logger.info(f'Monthly list has {len(monthly_list)} patient accounts.')
+            account_set.add(row['Patient ID'])
+            patient_set.add(row['Patient Name'])
+    for i, patient_name in enumerate(patient_set, 1):
+        row = {}
+        row['Patient Name'] = patient_name
+        row['readings'] = 0
+        monthly_list.append(row)
+    logger.info(f'Monthly list has {len(monthly_list)} patient accounts.')
     
     window['-STATUS-'].update(f"Master Account file loaded with {len(monthly_list)} patient accounts.")
     return csv_file.name
@@ -59,13 +66,10 @@ def get_monthly_list_summary():
     logger.info(__name__ + ".get_monthly_list_summary()")
 
     monthly_list_summary = []
-    row = 1
-    for item in monthly_list:
-        if item['readings'] != 0:
-            account_row = (row, item['Patient ID'], item['Billing Code'], item['Duration'], item['readings'])
-            monthly_list_summary.append(account_row)
-            row += 1
-    logger.info(f"The monthly account readings summary has {len(monthly_list_summary)} items")
+    for i, item in enumerate(monthly_list, 1):
+        account_row = (i, item['Patient Name'], item['readings'])
+        monthly_list_summary.append(account_row)
+    logger.info(f"The monthly patient summary has {len(monthly_list_summary)} items")
     return monthly_list_summary
 
 
@@ -75,8 +79,7 @@ def get_monthly_summary_csv_data():
 
     monthly_list_summary = []
     for item in monthly_list:
-        if item['readings'] != 0:
-            monthly_list_summary.append(item)
+        monthly_list_summary.append(item)
     logger.info(f"The monthly account readings summary has {len(monthly_list_summary)} items")
     return monthly_list_summary
 
@@ -92,7 +95,7 @@ def load_daily_report(window):
 
     if daily_filename in used_files:
         logger.info(f"File '{daily_filename}' has already been used.")
-        sg.popup_ok("File '{daily_filename}' has already been used.")
+        sg.popup_ok(f"File '{daily_filename}' has already been used.")
         window['-STATUS-'].update(f"Loading {daily_filename} failed")
         window['-REPORT_TEXT_1-'].update(f"File has already been loaded. Please try again.")
         return
@@ -101,49 +104,69 @@ def load_daily_report(window):
 
     print(f"Loaded daily report '{daily_filename}'")
     global dailyList
+    global monthly_list
+
+    daily_rows = []
     with open(daily_filename, mode='r') as csv_file:
         dailyCSV = csv.reader(csv_file)
-        buildID = False
-        dateFlag = False
         for i, row in enumerate(dailyCSV, 1):
-            # print(f'{i:4}. raw data {row}')
-            if row[0] == '' and dateFlag:
-                if buildID:
-                    buildID = False
-                    dateFlag = False
-            elif not buildID and not dateFlag and row[0] != '':
-                patientID = row[0]
-                logger.info(f"\t{i:4}. Found patient ID = {patientID}")
-                buildID = True
-            elif buildID:
-                try:
-                    rowDate = datetime.strptime(row[0], '%Y-%m-%d')
-                    readingDate = rowDate.strftime('%Y-%m-%d')
-                    dailyList.add((patientID, readingDate,))
-                    dateFlag = True
-                except Exception:
-                    # print(f"\t{i:4}. {row[0]}  {e}")
-                    continue
-        
+            row[0] = row[0].replace('/', '-')
+            daily_rows.append(row)
+
+    newPatientAccount = False
+    bDate = False
+    for i, row in enumerate(daily_rows, 1):
+        if row[0] in account_set:
+            newPatientAccount = True
+            continue
+        if newPatientAccount:
+            patientName = row[0]
+            newPatientAccount = False
+            bDate = True
+            continue
+        if bDate:
+            date_format = '%Y-%m-%d'
+            try:
+                rowDate = datetime.strptime(row[0], date_format)
+            except Exception:
+    # switch to alternate date format if default date format fails on birth date
+                date_format = '%m-%d-%Y'
+            bDate = False
+            continue
+        if not newPatientAccount and not bDate:
+            try:
+                rowDate = datetime.strptime(row[0], date_format)
+                readingDate = rowDate.strftime('%Y-%m-%d')
+                dailyList.add((patientName, readingDate,))
+            except Exception:
+                continue
+
     # print(dailyList)
     # print(monthlyList)
 
     histogram_count = {}
-    for patientID, readingDate in dailyList:
+    for patientName, readingDate in dailyList:
         try:
-            histogram_count[patientID] += 1
+            histogram_count[patientName] += 1
         except KeyError:
-            histogram_count[patientID] = 1
+            histogram_count[patientName] = 1
     logger.info(f"readings per Patient ID = {histogram_count}")
 
-    global monthly_list
-    for i, patient_account_summary in enumerate(monthly_list):
-        patient_id = patient_account_summary['Patient ID']
-        if patient_id in histogram_count:
-            monthly_list[i]['readings'] = histogram_count[patient_id]
-            logger.info(f"Updated monthly list record {monthly_list[i]}")
+    for patientName, new_count in histogram_count.items():
+        bFound = False
+        for i, list_item in enumerate(monthly_list):
+            patient = list_item['Patient Name']
+            old_count = list_item['readings']
+            if patientName == patient:
+                monthly_list[i]['readings'] = new_count
+                logger.info(f"Updated monthly list record {patient} from {old_count} to {new_count}")
+                bFound = True
+                break
+        if not bFound:
+            logger.warn(f"Patient '{patientName}' in daily report but not in master account list")
+            sg.popup_ok(f"Please add patient '{patientName}' to the master account list.")
 
-    window['-STATUS-'].update(f"Summary report updated. It now has {len(get_monthly_list_summary())} rows.")
+    window['-STATUS-'].update(f"Summary report updated.")
     window['-REPORT_TEXT_1-'].update('You may continue to add daily reports')
     return csv_file.name
 
@@ -168,7 +191,7 @@ def save_csv(window):
     file_name = os.path.join(dir_name, 'account_summary.csv')
 
     with open(file_name, mode='w', newline='') as csv_out:
-        fieldnames = ['Patient ID', 'Billing Code', 'Duration', 'readings']
+        fieldnames = ['Patient Name', 'readings']
         writer = csv.DictWriter(csv_out, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(monthly_list_summary)
