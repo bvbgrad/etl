@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from re import MULTILINE
 import PySimpleGUI as sg
 
@@ -94,7 +95,8 @@ def menu():
         'Executive Monthly Account Report Summary (eMARS)',
         layout, default_element_size=(40, 1),
         resizable=True, finalize=True)
-    load_master_data(window)
+    if(load_master_data(window) is None):
+        sys.exit("Abort: Unable to load Master table")
 
     # --- Menu Loop --- #
     while True:
@@ -104,9 +106,9 @@ def menu():
         if event == sg.WIN_CLOSED or event == 'Exit' or event is None:
             break
         elif event == 'Load a daily report' or event == '-BTN_LOAD_DAILY-':
-            load_daily_report(window)
-            window['-BTN_SAVE_REPORT-'].update(visible=True)
-        elif event == 'Save CSV' or event == '-BTN_SAVE_REPORT-':
+            if load_daily_report(window) is not None:
+                window['-BTN_SAVE_REPORT-'].update(visible=True)
+        elif event == 'Save Report' or event == '-BTN_SAVE_REPORT-':
             save_report(window)
         elif event == 'About...':
             sg.popup(legal_fine_print, title="About eMARS")

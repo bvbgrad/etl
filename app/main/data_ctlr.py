@@ -1,6 +1,7 @@
 """
 """
 
+from plistlib import InvalidFileException
 import app.utils6L.utils6L as utils
 
 import csv
@@ -29,21 +30,22 @@ used_files = set()
 @utils.log_wrap
 def xlsx_reader(filename):
     logger.info(__name__ + ".xlsx_reader()")
-    wb = load_workbook(filename=filename, read_only=True)
-    ws = wb.active
 
     rows = []
-
-    for row in ws.values:
-        rows.append(row)
-    
-    wb.close()
+    try:
+        wb = load_workbook(filename=filename, read_only=True)
+        ws = wb.active
+        for row in ws.values:
+            rows.append(row)
+        wb.close()
+    except Exception:
+        sg.popup_error(f"eMARS does not support .csv file format.\nSupported formats are: .xlsx,.xlsm,.xltx,.xltm")
     return rows
 
 
 @utils.log_wrap
 def load_master_data(window):
-    logger.info(__name__ + ".get_master_data()")
+    logger.info(__name__ + ".load_master_data()")
 
     monthly_filename = sg.popup_get_file('Select the monthly report')
     if monthly_filename is None or monthly_filename == '':
@@ -54,10 +56,15 @@ def load_master_data(window):
     monthly_filename_remember = monthly_filename
 
     print(f"Log intiated at: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    print(f"Master Account file loaded: {monthly_filename}")
 
     rows_list = xlsx_reader(monthly_filename)
+    if len(rows_list) == 0:
+        logger.info(f"Master Account file has no data: {monthly_filename}")
+        print(f"Master Account file has no data: {monthly_filename}")
+        return None
 
+    logger.info(f"Master Account file loaded: {monthly_filename}")
+    print(f"Master Account file loaded: {monthly_filename}")
     for i, row in enumerate(rows_list):
         if i == 0:
             logger.info(f'Base column names are {", ".join(row)}')
@@ -71,7 +78,8 @@ def load_master_data(window):
         csv_row['Duration'] = row[3]
         csv_row['readings'] = 0
         monthly_list.append(csv_row)
-    logger.info(f'Master Report list has {len(monthly_list)} patient records.')
+    logger.info(f'The Master Report list has {len(monthly_list)} patient records.')
+    print(f'The Master Report list has {len(monthly_list)} patient records.')
     
     window['-STATUS-'].update(f"Master Report file has {len(monthly_list)} patient account records.")
     return monthly_filename
@@ -123,14 +131,19 @@ def load_daily_report(window):
     else:
         used_files.add(daily_filename)
 
-    print(f"Loaded daily report\n    '{daily_filename}'")
     global dailyList
     global monthly_list
     global patient_set
 
     daily_rows = xlsx_reader(daily_filename)
+    if len(daily_rows) == 0:
+        logger.info(f"Unable to load daily report '{daily_filename}'")
+        return None
 
+    logger.info(f"Loaded daily report '{daily_filename}'")
+    print(f"Loaded daily report\n    '{daily_filename}'")
     bDate = False
+    count_not_in_master_list = 0
     for i, row in enumerate(daily_rows, 1):
         if row[0] in patient_set:
             patientName = row[0]
@@ -143,13 +156,19 @@ def load_daily_report(window):
         else:
             try:
                 row_date = date_parser(row[0])
+                if row[1] in ('MALE', 'FEMALE'):
+                    if prior_row0 != '':
+                        patientName = prior_row0
+                        # print(f"Warning: Patient on line '{i:5}' not in the master account list.")
+                        count_not_in_master_list += 1
+                    continue
                 reading_date = row_date.strftime('%Y-%m-%d')
                 dailyList.add((patientName, reading_date,))
             except Exception:
+                prior_row0 = row[0]
                 continue
-
-    # print(dailyList)
-    # print(monthlyList)
+    print(f"Warning: There are {count_not_in_master_list} patients that are not in the Master Account list.")
+    logger.warn(f"Warning: There are {count_not_in_master_list} patients that are not in the Master Account list.")
 
     histogram_count = {}
     for patientName, readingDate in dailyList:
@@ -157,21 +176,23 @@ def load_daily_report(window):
             histogram_count[patientName] += 1
         except KeyError:
             histogram_count[patientName] = 1
-    logger.info(f"readings per Patient ID = {histogram_count}")
+    # print(f"readings per Patient ID = {histogram_count}")
+    print(f"There are {len(histogram_count)} patients that have readings.")
+    logger.warn(f"There are {len(histogram_count)} patients that have readings.")
 
+    # count_zero_readings = set()
     for patientName, new_count in histogram_count.items():
-        bFound = False
         for i, list_item in enumerate(monthly_list):
             patient = list_item['Patient Name']
             old_count = list_item['readings']
             if patientName == patient:
                 monthly_list[i]['readings'] = new_count
-                logger.info(f"Updated monthly list record {patient} from {old_count} to {new_count}")
-                bFound = True
-                break
-        if not bFound:
-            logger.warn(f"Patient '{patientName}' in daily report but not in master account list")
-            sg.popup_ok(f"Please add patient '{patientName}' to the master account list.")
+                logger.info(f"Updated monthly list record {i:4} from {old_count} to {new_count}")
+                # break
+            # else:
+    #             count_zero_readings.add(patientName)
+    # print(f"There are {len(count_zero_readings)} patients that have zero readings.")
+    # logger.warn(f"There are {len(count_zero_readings)} patients that have zero readings.")
 
     window['-STATUS-'].update(f"Summary report updated.")
     window['-REPORT_TEXT_1-'].update('You may continue to add daily reports')
@@ -181,7 +202,6 @@ def load_daily_report(window):
 @utils.log_wrap
 def save_report(window):
     logger.info(__name__ + ".save_report()")
-    logger.info("Saving the consolidated report.")
 
     monthly_list_summary = get_monthly_summary_csv_data()
     if len(monthly_list_summary) == 0:
@@ -237,6 +257,7 @@ def save_report(window):
     with open(file_name, mode='w') as log_out:
         log_text = window['-LOG-'].get()
         log_out.writelines(log_text)
+        logger.info(log_text)
     
     window['-STATUS-'].update(f"'CSV and Log files saved in '{save_folder}'")
-
+    logger.info(f"CSV and Log files saved in '{save_folder}'")
