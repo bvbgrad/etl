@@ -1,5 +1,15 @@
+altgraph==0.17.2
+et-xmlfile==1.1.0
+future==0.18.2
+openpyxl==3.0.9
 packaging==21.3
+pefile==2021.9.3
 pip-review==1.1.1
+pyinstaller==4.10
+pyinstaller-hooks-contrib==2022.3
 pyparsing==3.0.7
 PySimpleGUI==4.57.0
-python-dotenv==0.19.2
+python-dateutil==2.8.2
+python-dotenv==0.20.0
+pywin32-ctypes==0.2.0
+six==1.16.0

@@ -9,7 +9,7 @@ import os
 import app.utils6L.utils6L as utils
 
 author = __author__ = 'Brent V. Bingham'
-version = __version__ = '0.2'
+version = __version__ = '0.3'
 
 logger_name = os.getenv("LOGGER_NAME")
 logger = logging.getLogger(logger_name)

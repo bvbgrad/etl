@@ -6,20 +6,38 @@ import app.utils6L.utils6L as utils
 import csv
 import logging
 import os
-import PySimpleGUI as sg
 import sys
 
-from datetime import date, datetime
+import PySimpleGUI as sg
+
+from datetime import datetime
+from dateutil.parser import parse as date_parser
+from openpyxl import load_workbook
+from pathlib import Path
 
 logger_name = os.getenv("LOGGER_NAME")
 logger = logging.getLogger(logger_name)
 
 monthly_filename_remember = ''
 monthly_list = []
-account_set = set()
 patient_set = set()
 dailyList = set()
 used_files = set()
+
+
+@utils.log_wrap
+def xlsx_reader(filename):
+    logger.info(__name__ + ".xlsx_reader()")
+    wb = load_workbook(filename=filename, read_only=True)
+    ws = wb.active
+
+    rows = []
+
+    for row in ws.values:
+        rows.append(row)
+    
+    return rows
+
 
 @utils.log_wrap
 def load_master_data(window):
@@ -30,32 +48,31 @@ def load_master_data(window):
         sys.exit()
 
     global monthly_filename_remember
-    global account_set
     global patient_set
     monthly_filename_remember = monthly_filename
 
     print(f"Log intiated at: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     print(f"Master Account file loaded: {monthly_filename}")
 
-    with open(monthly_filename, mode='r') as csv_file:
-        monthlyDict = csv.DictReader(csv_file)
-        for i, row in enumerate(monthlyDict):
-            if i == 0:
-                logger.info(f'Base column names are {", ".join(row)}')
-    # Add the readings column to the Monthly list row
-            account_set.add(row['Patient ID'])
-            patient_set.add(row['Patient Name'])
+    rows_list = xlsx_reader(monthly_filename)
 
-            csv_row = {}
-            csv_row['Patient Name'] = row['Patient Name']
-            csv_row['Billing Code'] = row['Billing Code']
-            csv_row['Duration'] = row['Duration']
-            csv_row['readings'] = 0
-            monthly_list.append(csv_row)
-    logger.info(f'Monthly list has {len(monthly_list)} patient accounts.')
+    for i, row in enumerate(rows_list):
+        if i == 0:
+            logger.info(f'Base column names are {", ".join(row)}')
+            continue
+    # column names: Patient ID,Patient Name,Billing Code,Duration,Type,Disease Conditions
+        patient_set.add(row[1])
+
+        csv_row = {}
+        csv_row['Patient Name'] = row[1]
+        csv_row['Billing Code'] = row[2]
+        csv_row['Duration'] = row[3]
+        csv_row['readings'] = 0
+        monthly_list.append(csv_row)
+    logger.info(f'Master Report list has {len(monthly_list)} patient records.')
     
-    window['-STATUS-'].update(f"Master Account file loaded with {len(monthly_list)} patient accounts.")
-    return csv_file.name
+    window['-STATUS-'].update(f"Master Report file has {len(monthly_list)} patient account records.")
+    return monthly_filename
 
 @utils.log_wrap
 def get_monthly_list():
@@ -104,42 +121,28 @@ def load_daily_report(window):
     else:
         used_files.add(daily_filename)
 
-    print(f"Loaded daily report '{daily_filename}'")
+    print(f"Loaded daily report\n    '{daily_filename}'")
     global dailyList
     global monthly_list
+    global patient_set
 
-    daily_rows = []
-    with open(daily_filename, mode='r') as csv_file:
-        dailyCSV = csv.reader(csv_file)
-        for i, row in enumerate(dailyCSV, 1):
-            row[0] = row[0].replace('/', '-')
-            daily_rows.append(row)
+    daily_rows = xlsx_reader(daily_filename)
 
-    newPatientAccount = False
     bDate = False
     for i, row in enumerate(daily_rows, 1):
-        if row[0] in account_set:
-            newPatientAccount = True
-            continue
-        if newPatientAccount:
+        if row[0] in patient_set:
             patientName = row[0]
-            newPatientAccount = False
+    # anticipate the next row will be the patient birth date
             bDate = True
             continue
         if bDate:
-            date_format = '%Y-%m-%d'
-            try:
-                rowDate = datetime.strptime(row[0], date_format)
-            except Exception:
-    # switch to alternate date format if default date format fails on birth date
-                date_format = '%m-%d-%Y'
+    # skip birth date row
             bDate = False
-            continue
-        if not newPatientAccount and not bDate:
+        else:
             try:
-                rowDate = datetime.strptime(row[0], date_format)
-                readingDate = rowDate.strftime('%Y-%m-%d')
-                dailyList.add((patientName, readingDate,))
+                row_date = date_parser(row[0])
+                reading_date = row_date.strftime('%Y-%m-%d')
+                dailyList.add((patientName, reading_date,))
             except Exception:
                 continue
 
@@ -170,7 +173,7 @@ def load_daily_report(window):
 
     window['-STATUS-'].update(f"Summary report updated.")
     window['-REPORT_TEXT_1-'].update('You may continue to add daily reports')
-    return csv_file.name
+    return Path(daily_filename).name
 
 
 @utils.log_wrap
@@ -192,14 +195,20 @@ def save_csv(window):
     dir_name = os.path.dirname(monthly_filename_remember)
     file_name = os.path.join(dir_name, 'account_summary.csv')
 
-    with open(file_name, mode='w', newline='') as csv_out:
-        fieldnames = ['Patient Name', 'Billing Code', 'Duration', 'readings']
-        writer = csv.DictWriter(csv_out, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(monthly_list_summary)
-
-    print(f"Summary report saved to '{file_name}'.  It has {len(monthly_list_summary)} rows.")
-    print(f"Summary report saved at: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    try:
+        with open(file_name, mode='w', newline='') as csv_out:
+            fieldnames = ['Patient Name', 'Billing Code', 'Duration', 'readings']
+            writer = csv.DictWriter(csv_out, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(monthly_list_summary)
+        print(f"Summary report saved to '{file_name}'.  It has {len(monthly_list_summary)} rows.")
+        print(f"Summary report saved at: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    except PermissionError:
+        sg.popup_error("Could not save 'account_summary' report\nCheck if a previous version is open in Excel.")
+        return
+    except Exception as err:
+        sg.popup_error(f"Error saving account_summary report\n  {err}")
+        return
 
     file_name = os.path.join(dir_name, 'account_summary.log')
     with open(file_name, mode='w') as log_out:

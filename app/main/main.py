@@ -55,7 +55,7 @@ def menu():
             'Load the first daily file.',
             key='-REPORT_TEXT_1-')],
         [sg.Text(
-            'The data will change as the daily files are loaded.',  
+            'The Readings data will change as the Reading History files are loaded.',  
             key='-REPORT_TEXT_2-')],
         [sg.Table(
             values=[],
