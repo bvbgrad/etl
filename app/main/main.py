@@ -6,7 +6,7 @@ import PySimpleGUI as sg
 import app.utils6L.utils6L as utils
 from app.main.config import getargs, get_config, save_config, get_version
 
-from app.main.data_ctlr import load_master_data, get_monthly_list_summary, load_daily_report, save_csv
+from app.main.data_ctlr import load_master_data, get_monthly_list_summary, load_daily_report, save_report
 
 logger_name = os.environ["LOGGER_NAME"]
 logger = logging.getLogger(logger_name)
@@ -70,7 +70,7 @@ def menu():
             key='-DATA_TABLE-',
             tooltip='This table shows current number of readings for each patient')],
         [sg.Btn('Load Daily', key='-BTN_LOAD_DAILY-', pad=5, button_color=('white', 'blue3')),
-            sg.Btn('Save CSV', key='-BTN_SAVE_CSV-', pad=5, button_color=('white', 'blue3'), visible=False),
+            sg.Btn('Save Report', key='-BTN_SAVE_REPORT-', pad=5, button_color=('white', 'blue3'), visible=False),
             ]
         ]
 
@@ -105,9 +105,9 @@ def menu():
             break
         elif event == 'Load a daily report' or event == '-BTN_LOAD_DAILY-':
             load_daily_report(window)
-            window['-BTN_SAVE_CSV-'].update(visible=True)
-        elif event == 'Save CSV' or event == '-BTN_SAVE_CSV-':
-            save_csv(window)
+            window['-BTN_SAVE_REPORT-'].update(visible=True)
+        elif event == 'Save CSV' or event == '-BTN_SAVE_REPORT-':
+            save_report(window)
         elif event == 'About...':
             sg.popup(legal_fine_print, title="About eMARS")
 

@@ -12,7 +12,8 @@ import PySimpleGUI as sg
 
 from datetime import datetime
 from dateutil.parser import parse as date_parser
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import PatternFill
 from pathlib import Path
 
 logger_name = os.getenv("LOGGER_NAME")
@@ -36,6 +37,7 @@ def xlsx_reader(filename):
     for row in ws.values:
         rows.append(row)
     
+    wb.close()
     return rows
 
 
@@ -177,8 +179,8 @@ def load_daily_report(window):
 
 
 @utils.log_wrap
-def save_csv(window):
-    logger.info(__name__ + ".save_csv()")
+def save_report(window):
+    logger.info(__name__ + ".save_report()")
     logger.info("Saving the consolidated report.")
 
     monthly_list_summary = get_monthly_summary_csv_data()
@@ -188,27 +190,48 @@ def save_csv(window):
 
     save_folder = sg.popup_get_folder('Choose folder for saving merged report')
     if save_folder is None or save_folder == '':
-        window['-STATUS-'].update("'Save CSV' operation canceled.")
+        window['-STATUS-'].update("'Save Report' operation canceled.")
         return
 
     global monthly_filename_remember
     dir_name = os.path.dirname(monthly_filename_remember)
-    file_name = os.path.join(dir_name, 'account_summary.csv')
+    file_name_csv = os.path.join(dir_name, 'account_summary.csv')
+    file_name_xlsx = os.path.join(dir_name, 'account_summary.xlsx')
+    fieldnames = ['Patient Name', 'Billing Code', 'Duration', 'readings']
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Patient Summary'
+    ws.append(fieldnames)
+    for row in monthly_list_summary:
+        name, code, duration, readings = row.values()
+        ws.append((name, code, duration, readings,))
+    ws.freeze_panes = 'A2'
+    ws.auto_filter.ref = ws.dimensions
+    ws["A1"].fill = PatternFill("solid", start_color="c9c9c9")
+    ws["B1"].fill = PatternFill("solid", start_color="c9c9c9")
+    ws["C1"].fill = PatternFill("solid", start_color="c9c9c9")
+    ws["D1"].fill = PatternFill("solid", start_color="c9c9c9")
 
     try:
-        with open(file_name, mode='w', newline='') as csv_out:
-            fieldnames = ['Patient Name', 'Billing Code', 'Duration', 'readings']
+        wb.save(file_name_xlsx)
+        print(f"Summary Excel report saved to '{file_name_xlsx}'.  It has {len(monthly_list_summary)} rows.")
+
+        with open(file_name_csv, mode='w', newline='') as csv_out:
             writer = csv.DictWriter(csv_out, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(monthly_list_summary)
-        print(f"Summary report saved to '{file_name}'.  It has {len(monthly_list_summary)} rows.")
+        print(f"Summary CSV report saved to '{file_name_csv}'.  It has {len(monthly_list_summary)} rows.")
         print(f"Summary report saved at: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     except PermissionError:
         sg.popup_error("Could not save 'account_summary' report\nCheck if a previous version is open in Excel.")
+        window['-STATUS-'].update("'Save Report' operation canceled.")
         return
     except Exception as err:
         sg.popup_error(f"Error saving account_summary report\n  {err}")
         return
+    finally:
+        wb.close()
 
     file_name = os.path.join(dir_name, 'account_summary.log')
     with open(file_name, mode='w') as log_out:
